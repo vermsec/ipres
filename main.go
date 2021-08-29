@@ -19,11 +19,27 @@ func (s newline) String() string {
 	return str
 }
 
-func ipResolve(host string) {
+func ipResolve(host string, verbose bool, mapBool bool, outDir string) {
 	addr, err := net.LookupHost(host)
-	if err == nil {
+	if verbose {
 		fmt.Print(newline(addr))
+		if err != nil {
+			fmt.Printf("Error: %s\n", err)
+		}
+	} else {
+		if err == nil {
+			fmt.Print(newline(addr))
+		}
 	}
+	if mapBool {
+		file, err := os.OpenFile(outDir, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			fmt.Printf("Error while creating file: %v", err)
+		}
+		defer file.Close()
+		fmt.Fprintf(file, "%s : %v\n", host, addr)
+	}
+
 }
 
 func main() {
@@ -31,6 +47,9 @@ func main() {
 
 	version := flag.Bool("version", false, "current version")
 	help := flag.Bool("help", false, "usage info")
+	mapBool := flag.Bool("map", false, "generates IPmap")
+	v := flag.Bool("v", false, "verbose")
+	outDir := flag.String("o", "ipres.map", "output")
 	flag.Parse()
 
 	if *version {
@@ -38,7 +57,8 @@ func main() {
 		os.Exit(0)
 	}
 	if *help {
-		fmt.Printf("Usage:\n echo hosts.txt |ipres\n")
+		fmt.Println("IPres - IP Resolver (By @vermsec)")
+		fmt.Printf("Usage: echo hosts.txt |ipres\n")
 		os.Exit(0)
 	}
 
@@ -48,7 +68,7 @@ func main() {
 
 		wg.Add(1)
 		go func() {
-			ipResolve(host)
+			ipResolve(host, *v, *mapBool, *outDir)
 			wg.Done()
 		}()
 		wg.Wait()
